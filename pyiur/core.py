@@ -26,6 +26,26 @@ try:
 except ImportError:
     import simplejson as json
 
+#==============================================================================
+# Module-level API
+#==============================================================================
+def sideload(url, auth = None, **kwargs):
+    return Imgur(auth, **kwargs).sideload(url)
+
+def get_credits(auth = None, **kwargs):
+    return Imgur(auth, **kwargs).credits
+
+def get_account(auth = None, **kwargs):
+    return Imgur(auth, **kwargs).account
+
+def get_statistics(auth = None, **kwargs):
+    return Imgur(auth, **kwargs).statistics
+
+get_stats = get_statistics
+
+#==============================================================================
+# Private Module-level Helpers
+#==============================================================================
 _Undef = object()
 
 def _requires_auth(func):
@@ -49,6 +69,9 @@ def _requires_account(func):
 
     return wrapped
 
+#==============================================================================
+# Object API
+#==============================================================================
 class Imgur(object):
     """
 
@@ -69,6 +92,9 @@ class Imgur(object):
 
         self.auth = auth or AnonAuth()
 
+    #==========================================================================
+    # Information
+    #==========================================================================
     @property
     def credits(self):
 
@@ -123,28 +149,9 @@ class Imgur(object):
 
         return parse_account(response.content)
 
-    @_requires_account
-    def get_images(self, count = None, page = None):
-        # TODO
-        pass
-
-    @property
-    @_requires_account
-    def images_count(self):
-        # TODO
-        pass
-
-    @_requires_account
-    def get_albums(self, count = None, page = None):
-        # TODO
-        pass
-
-    @property
-    @_requires_account
-    def albums_count(self):
-        # TODO
-        pass
-
+    #==========================================================================
+    # Images
+    #==========================================================================
     def sideload(self, url):
         params = {'url': url}
         response = requests.get(self._api('upload'),
@@ -160,13 +167,37 @@ class Imgur(object):
         pass
 
     @_requires_auth
-    def upload_file(self, filename, type = None, name = None, title = None,
-                    caption = None):
+    def upload_file(self, filename, type = None, title = None, caption = None):
         # TODO
         pass
 
     @_requires_auth
-    def delete_image(self, image_or_delete_hash):
+    def delete_image(self, delete_hash):
+        # TODO
+        pass
+
+    @_requires_account
+    def get_images(self, count = None, page = None):
+        # TODO
+        pass
+
+    @property
+    @_requires_account
+    def images_count(self):
+        # TODO
+        pass
+
+    #==========================================================================
+    # Albums
+    #==========================================================================
+    @_requires_account
+    def get_albums(self, count = None, page = None):
+        # TODO
+        pass
+
+    @property
+    @_requires_account
+    def albums_count(self):
         # TODO
         pass
 
@@ -191,6 +222,9 @@ class Imgur(object):
         # TODO
         pass
 
+    #==========================================================================
+    # Private Helper Methods
+    #==========================================================================
     def _validate(self, response):
         """"""
 
@@ -198,15 +232,7 @@ class Imgur(object):
             credits = self.get_credits()
 
             if credits.remaining <= 0:
-                minutes = credits.refresh_in_secs / 60
-                seconds = credits.refresh_in_secs % 60
-                raise InsufficientCreditsError(
-                    'There are insufficient credits to perform the requested '
-                    'action. Credits will be refreshed in {0} minute{1} and '
-                    '{2} second{3}.'.format(minutes,
-                                            '' if minutes == 1 else 's',
-                                            seconds,
-                                            '' if seconds == 1 else 's'))
+                raise InsufficientCreditsError(credits)
 
 
         if response.status_code == 403:
@@ -222,19 +248,4 @@ class Imgur(object):
         """Convenience method for formatting JSON API URLs."""
 
         return self._API_URL.format(*args, **kwargs)
-
-
-def sideload(url, auth = None, **kwargs):
-    return Imgur(auth, **kwargs).sideload(url)
-
-def get_credits(auth = None, **kwargs):
-    return Imgur(auth, **kwargs).credits
-
-def get_statistics(auth = None, **kwargs):
-    return Imgur(auth, **kwargs).statistics
-
-def get_account(auth = None, **kwargs):
-    return Imgur(auth, **kwargs).account
-
-get_stats = get_statistics
 
