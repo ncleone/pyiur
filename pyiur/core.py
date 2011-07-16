@@ -26,6 +26,8 @@ try:
 except ImportError:
     import simplejson as json
 
+_Undef = object()
+
 def _requires_auth(func):
 
     @functools.wraps(func)
@@ -200,8 +202,11 @@ class Imgur(object):
                 seconds = credits.refresh_in_secs % 60
                 raise InsufficientCreditsError(
                     'There are insufficient credits to perform the requested '
-                    'action. Credits will be refreshed in {0} minutes and {1}'
-                    ' seconds.'.format(minutes, seconds))
+                    'action. Credits will be refreshed in {0} minute{1} and '
+                    '{2} second{3}.'.format(minutes,
+                                            '' if minutes == 1 else 's',
+                                            seconds,
+                                            '' if seconds == 1 else 's'))
 
 
         if response.status_code == 403:
