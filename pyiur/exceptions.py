@@ -4,7 +4,35 @@
 
 """
 
-class InsufficientCreditsError(Exception):
+class ImgurException(Exception):
+    """
+
+
+    """
+
+
+class ServiceTemporarilyDownError(ImgurException):
+    """
+
+
+    """
+
+
+class ImgurServerError(ImgurException):
+    """
+
+
+    """
+
+
+class ActionNotSupportedError(ImgurException):
+    """
+
+
+    """
+
+
+class InsufficientCreditsError(ImgurException):
     """
 
 
@@ -20,10 +48,16 @@ class InsufficientCreditsError(Exception):
             .format(minutes, '' if minutes == 1 else 's',
                     seconds, '' if seconds == 1 else 's'))
 
-class InvalidCredentialsError(Exception):
+class InvalidCredentialsError(ImgurException):
     """
 
 
     """
 
+
+class PermissionDeniedError(ImgurException):
+    """
+
+
+    """
 
