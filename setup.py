@@ -9,7 +9,8 @@ import sys
 import setuptools
 
 install_requires = [
-    'requests'
+    'python-dateutil>=1.5,<2.0',
+    'requests>=0.5'
 ]
 
 tests_require = [
