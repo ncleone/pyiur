@@ -1,1 +1,2 @@
-README.rst AUTHORS LICENSE
+include README.rst AUTHORS LICENSE
+recursive-include examples *
