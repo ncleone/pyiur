@@ -25,7 +25,8 @@ if sys.version_info < (2, 7):
 setuptools.setup(
     name = 'pyiur',
     version = '0.0.1',
-    description = 'Python bindings for the imgur REST API.',
+    description = ('Simple Python bindings for the imgur API with account '
+                   'support.'),
     keywords = ('imgur image images gallery upload sideload share pic pics '
                 'picture pictures'),
     url = 'https://github.com/dcnuno/pyiur',
