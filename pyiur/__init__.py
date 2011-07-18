@@ -72,7 +72,7 @@ class StatsView(object):
 #==============================================================================
 # Information
 #==============================================================================
-def get_stats(view = None):
+def get_stats(view = None, auth = None):
     """
     
     
@@ -90,8 +90,9 @@ def get_stats(view = None):
         return Statistics(most_popular_images, images_uploaded, images_viewed,
                           bandwidth_used, average_image_size)
 
+    auth = _parse_auth(auth)
     params = None if not view else {'view': view}
-    response = requests.get(_api('stats'), params)
+    response = requests.get(_api('stats'), **auth.update(params))
     _validate_response(response)
 
     return parse_stats(response.content)
@@ -206,24 +207,26 @@ def upload_file(filename, auth, title = None, caption = None):
 
         return _parse_image(response.content)
 
-def get_image(hash):
+def get_image(hash, auth = None):
     """
     
     
     """
 
-    response = requests.get(_api('image', hash))
+    auth = _parse_auth(auth)
+    response = requests.get(_api('image', hash), **auth.update())
     _validate_response(response)
 
     return _parse_image(response.content)
 
-def delete_image(hash):
+def delete_image(hash, auth = None):
     """
     
     
     """
 
-    response = requests.delete(_api('delete', hash))
+    auth = _parse_auth(auth)
+    response = requests.delete(_api('delete', hash), **auth.update())
     _validate_response(response)
 
 def get_images(auth, count = None, page = None):
@@ -580,9 +583,9 @@ def _parse_image(content):
     dt = dateutil.parser.parse(image['datetime'])
     animated = image['animated'] == 'true'
 
-    return Image(image['hash'], image['deletehash'], image['type'],
-                 image['name'], image['title'], image['caption'], dt, animated,
-                 image['width'], image['height'], image['size'],
+    return Image(image['hash'], image.get('deletehash'), image['type'],
+                 image.get('name'), image['title'], image['caption'], dt,
+                 animated, image['width'], image['height'], image['size'],
                  image['views'], image['bandwidth'], links)
 
 def _parse_images(content):
