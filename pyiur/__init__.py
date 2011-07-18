@@ -30,6 +30,46 @@ except ImportError:
     import simplejson as json
 
 #==============================================================================
+# Types
+#==============================================================================
+Credits = collections.namedtuple('Credits', ('limit', 'remaining', 'reset',
+                                             'refresh_in_secs'))
+
+Statistics = collections.namedtuple('Statistics',
+                                    ('most_popular_images', 'images_uploaded',
+                                     'images_viewed', 'bandwidth_used',
+                                     'average_image_size'))
+
+Account = collections.namedtuple('Account', ('url', 'is_pro',
+                                             'default_album_privacy',
+                                             'public_images'))
+
+Image = collections.namedtuple('Image', ('hash', 'delete_hash', 'type', 'name',
+                                         'title', 'caption', 'datetime',
+                                        'animated', 'width', 'height', 'size',
+                                        'views', 'bandwidth', 'links'))
+
+Album = collections.namedtuple('Album', ('id', 'title', 'description',
+                                         'privacy', 'cover', 'order', 'layout',
+                                         'datetime', 'link', 'anonymous_link'))
+
+class AlbumPrivacy(object):
+    PUBLIC = 'public'
+    HIDDEN = 'hidden'
+    SECRET = 'secret'
+
+class AlbumLayout(object):
+    BLOG = 'blog'
+    HORIZONTAL = 'horizontal'
+    VERTICAL = 'vertical'
+    GRID = 'grid'
+
+class StatsView(object):
+    TODAY = 'today'
+    WEEK = 'week'
+    MONTH = 'month'
+
+#==============================================================================
 # Information
 #==============================================================================
 def get_stats(view = None):
@@ -56,9 +96,9 @@ def get_stats(view = None):
 
     return parse_stats(response.content)
 
-get_stats_today = functools.partial(get_stats, 'today')
-get_stats_week = functools.partial(get_stats, 'week')
-get_stats_month = functools.partial(get_stats, 'month')
+get_stats_today = functools.partial(get_stats, StatsView.TODAY)
+get_stats_week = functools.partial(get_stats, StatsView.WEEK)
+get_stats_month = functools.partial(get_stats, StatsView.MONTH)
 
 def get_credits(auth = None):
     """
@@ -225,8 +265,26 @@ def get_images_count(auth):
 
     return parse_count(response.content)
 
-def update_image(hash, auth, **params):
-    pass # TODO
+def update_image(hash, auth, **fields_to_update):
+    """
+
+
+    """
+
+    params = {}
+
+    if 'title' in fields_to_update:
+        params['title'] = fields_to_update['title']
+
+    if 'caption' in fields_to_update:
+        params['caption'] = fields_to_update['caption']
+
+    auth = _parse_auth(auth)
+    response = requests.post(_api('account', 'images', hash),
+                             **auth.update(params))
+    _validate_response(response)
+
+    return _parse_image(response.content)
 
 def set_image_title(hash, title, auth):
     """
@@ -364,11 +422,12 @@ def set_album_images_order(id, image_hashes, auth):
 
 def update_album(id, auth, **params):
     """
-    
-    
+
+
     """
 
-    pass # TODO
+    # TODO
+    pass
 
 def set_album_title(id, title, auth):
     """
@@ -433,46 +492,6 @@ def remove_album_images(id, hashes, auth):
     """
 
     return update_album(id, del_images = hashes, auth = auth)
-
-#==============================================================================
-# Types
-#==============================================================================
-Credits = collections.namedtuple('Credits', ('limit', 'remaining', 'reset',
-                                             'refresh_in_secs'))
-
-Statistics = collections.namedtuple('Statistics',
-                                    ('most_popular_images', 'images_uploaded',
-                                     'images_viewed', 'bandwidth_used',
-                                     'average_image_size'))
-
-Account = collections.namedtuple('Account', ('url', 'is_pro',
-                                             'default_album_privacy',
-                                             'public_images'))
-
-Image = collections.namedtuple('Image', ('hash', 'delete_hash', 'type', 'name',
-                                         'title', 'caption', 'datetime',
-                                        'animated', 'width', 'height', 'size',
-                                        'views', 'bandwidth', 'links'))
-
-Album = collections.namedtuple('Album', ('id', 'title', 'description',
-                                         'privacy', 'cover', 'order', 'layout',
-                                         'datetime', 'link', 'anonymous_link'))
-
-class AlbumPrivacy(object):
-    PUBLIC = 'public'
-    HIDDEN = 'hidden'
-    SECRET = 'secret'
-
-class AlbumLayout(object):
-    BLOG = 'blog'
-    HORIZONTAL = 'horizontal'
-    VERTICAL = 'vertical'
-    GRID = 'grid'
-
-class StatsView(object):
-    TODAY = 'today'
-    WEEK = 'week'
-    MONTH = 'month'
 
 #==============================================================================
 # Private Helpers
