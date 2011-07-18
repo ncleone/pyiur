@@ -3,3 +3,4 @@
 /.project
 *.pyc
 *.swp
+*.egg-info
