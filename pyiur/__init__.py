@@ -12,10 +12,10 @@ import os.path
 import dateutil.parser
 import requests
 
-from pyiur.auth import Anonymous as AnonAuth
-from pyiur.auth import Cookie as CookieAuth
-from pyiur.auth import DeveloperKey as DevAuth
-from pyiur.auth import OAuth1
+from pyiur.auth import Anonymous as _AnonAuth
+from pyiur.auth import Cookie as _CookieAuth
+from pyiur.auth import DeveloperKey as _DevAuth
+from pyiur.auth import OAuth1 as oauth
 
 from pyiur.exceptions import ActionNotSupportedError
 from pyiur.exceptions import ImgurException
@@ -52,7 +52,7 @@ def get_stats(view = None):
 
     params = None if not view else {'view': view}
     response = requests.get(_api('stats'), params)
-    _validate(response)
+    _validate_response(response)
 
     return parse_stats(response.content)
 
@@ -78,7 +78,7 @@ def get_credits(auth = None):
 
     auth = _parse_auth(auth)
     response = requests.get(_api('credits'), **auth.update())
-    _validate(response, auth)
+    _validate_response(response, auth)
 
     return parse_credits(response.content)
 
@@ -100,7 +100,7 @@ def get_account(auth = None):
 
     auth = _parse_auth(auth)
     response = requests.get(_api('account'), **auth.update())
-    _validate(response)
+    _validate_response(response)
 
     return parse_account(response.content)
 
@@ -116,7 +116,7 @@ def sideload(url, auth = None):
     auth = _parse_auth(auth)
     params = {'url': url}
     response = requests.get(_api('upload'), **auth.update(params))
-    _validate(response)
+    _validate_response(response)
 
     return _parse_image(response.content)
 
@@ -139,7 +139,7 @@ def upload_url(url, auth, name = None, title = None, caption = None):
         params['caption'] = caption
 
     response = requests.post(_api('upload'), **auth.update(params))
-    _validate(response)
+    _validate_response(response)
 
     return _parse_image(response.content)
 
@@ -162,7 +162,7 @@ def upload_file(filename, auth, title = None, caption = None):
 
         response = requests.post(_api('upload'), files = {'image': file},
                                  **auth.update(params))
-        _validate(response)
+        _validate_response(response)
 
         return _parse_image(response.content)
 
@@ -173,7 +173,7 @@ def get_image(hash):
     """
 
     response = requests.get(_api('image', hash))
-    _validate(response)
+    _validate_response(response)
 
     return _parse_image(response.content)
 
@@ -184,22 +184,14 @@ def delete_image(hash):
     """
 
     response = requests.delete(_api('delete', hash))
-    _validate(response)
+    _validate_response(response)
 
 def get_images(auth, count = None, page = None):
-
     """
     
     
     """
 
-    def parse_images(content):
-        """"""
-
-        images = json.loads(content)['images']
-        return [_parse_image(image) for image in images]
-
-    auth = _parse_auth(auth)
     params = {}
 
     if count:
@@ -208,10 +200,11 @@ def get_images(auth, count = None, page = None):
     if page:
         params['page'] = page
 
+    auth = _parse_auth(auth)
     response = requests.get(_api('account', 'images'), **auth.update(params))
-    _validate(response)
+    _validate_response(response)
 
-    return parse_images(response.content)
+    return _parse_images(response.content)
 
 def get_images_count(auth):
     """
@@ -228,13 +221,52 @@ def get_images_count(auth):
 
     auth = _parse_auth(auth)
     response = requests.get(_api('account', 'images_count'), **auth.update())
-    _validate(response)
+    _validate_response(response)
 
     return parse_count(response.content)
+
+def update_image(hash, auth, **params):
+    pass # TODO
+
+def set_image_title(hash, title, auth):
+    """
+    
+    
+    """
+
+    return update_image(hash, title = title, auth = auth)
+
+def set_image_caption(hash, caption, auth):
+    """
+    
+    
+    """
+
+    return update_image(hash, caption = caption, auth = auth)
 
 #==============================================================================
 # Albums
 #==============================================================================
+def get_albums(auth, count = None, page = None):
+    """
+    
+    
+    """
+
+    params = {}
+
+    if count:
+        params['count'] = count
+
+    if page:
+        params['page'] = page
+
+    auth = _parse_auth(auth)
+    response = requests.get(_api('account', 'albums'), **auth.update(params))
+    _validate_response(response)
+
+    return _parse_albums(response.content)
+
 def get_albums_count(auth):
     """
     
@@ -249,62 +281,158 @@ def get_albums_count(auth):
         return count
 
     auth = _parse_auth(auth)
-    response = requests.get(_api('account/albums_count'), **auth.update())
-    _validate(response)
+    response = requests.get(_api('account', 'albums_count'), **auth.update())
+    _validate_response(response)
 
     return parse_count(response.content)
-
-def get_albums(auth, count = None, page = None):
-
-    """
-    
-    
-    """
-
-    # TODO
-    pass
-
-
-
-def delete_album(hash, auth = None):
-    """
-    
-    
-    """
-
-    # TODO
-    pass
-
-
-def set_album_order(album_ids, auth = None):
-    """
-    
-    
-    """
-
-    # TODO
-    pass
-
 
 def create_album(auth, title = None, description = None, privacy = None,
                  layout = None):
     """
-    
-    
+
+
+    """
+
+    params = {}
+
+    if title:
+        params['title'] = title
+
+    if description:
+        params['description'] = description
+
+    if privacy:
+        params['privacy'] = privacy
+
+    if layout:
+        params['layout'] = layout
+
+    auth = _parse_auth(auth)
+    response = requests.post(_api('account', 'albums'), **auth.update(params))
+    _validate_response(response)
+
+    return _parse_album(response.content)
+
+def delete_album(id, auth):
+    """
+
+
+    """
+
+    auth = _parse_auth(auth)
+    response = requests.delete(_api('account', 'albums', id), **auth.update())
+    _validate_response(response)
+
+def set_albums_order(ids, auth):
+    """
+
+
     """
 
     # TODO
     pass
 
-
-def set_image_order(album_hash, image_ids, auth = None):
+def get_album_images(id, auth, count = None, page = None):
     """
-    
-    
+
+
+    """
+
+    params = {}
+
+    if count:
+        params['count'] = count
+
+    if page:
+        params['page'] = page
+
+    auth = _parse_auth(auth)
+    response = requests.get(_api('account', 'albums', id),
+                            **auth.update(params))
+    _validate_response(response)
+
+    return _parse_images(response.content)
+
+def set_album_images_order(id, image_hashes, auth):
+    """
+
+
     """
 
     # TODO
     pass
+
+def update_album(id, auth, **params):
+    """
+    
+    
+    """
+
+    pass # TODO
+
+def set_album_title(id, title, auth):
+    """
+    
+    
+    """
+
+    return update_album(id, title = title, auth = auth)
+
+def set_album_description(id, description, auth):
+    """
+    
+    
+    """
+
+    return update_album(id, description = description, auth = auth)
+
+def set_album_cover(id, hash, auth):
+    """
+    
+    
+    """
+
+    return update_album(id, cover = hash, auth = auth)
+
+def set_album_privacy(id, privacy, auth):
+    """
+    
+    
+    """
+
+    return update_album(id, privacy = privacy, auth = auth)
+
+def set_album_layout(id, layout, auth):
+    """
+    
+    
+    """
+
+    return update_album(id, layout = layout, auth = auth)
+
+def set_album_images(id, hashes, auth):
+    """
+    
+    
+    """
+
+    return update_album(id, images = hashes, auth = auth)
+
+def add_album_images(id, hashes, auth):
+    """
+    
+    
+    """
+
+    return update_album(id, add_images = hashes, auth = auth)
+
+def remove_album_images(id, hashes, auth):
+    """
+    
+    
+    """
+
+    return update_album(id, del_images = hashes, auth = auth)
 
 #==============================================================================
 # Types
@@ -326,7 +454,25 @@ Image = collections.namedtuple('Image', ('hash', 'delete_hash', 'type', 'name',
                                         'animated', 'width', 'height', 'size',
                                         'views', 'bandwidth', 'links'))
 
-Album = collections.namedtuple('Album', ())
+Album = collections.namedtuple('Album', ('id', 'title', 'description',
+                                         'privacy', 'cover', 'order', 'layout',
+                                         'datetime', 'link', 'anonymous_link'))
+
+class AlbumPrivacy(object):
+    PUBLIC = 'public'
+    HIDDEN = 'hidden'
+    SECRET = 'secret'
+
+class AlbumLayout(object):
+    BLOG = 'blog'
+    HORIZONTAL = 'horizontal'
+    VERTICAL = 'vertical'
+    GRID = 'grid'
+
+class StatsView(object):
+    TODAY = 'today'
+    WEEK = 'week'
+    MONTH = 'month'
 
 #==============================================================================
 # Private Helpers
@@ -341,21 +487,21 @@ def _parse_auth(auth):
         """"""
 
         if isinstance(auth, basestring):
-            return DevAuth(auth)
+            return _DevAuth(auth)
 
     def cookie_auth():
         """"""
 
         try:
             username, password = auth
-            return CookieAuth(username, password)
+            return _CookieAuth(username, password)
         except (ValueError, TypeError):
             pass
 
-    return dev_auth() or cookie_auth() or auth or AnonAuth()
+    return dev_auth() or cookie_auth() or auth or _AnonAuth()
 
 
-def _validate(response, auth = None):
+def _validate_response(response, auth = None):
     """"""
 
     def validate_credits():
@@ -393,20 +539,23 @@ def _validate(response, auth = None):
                          .format(response.status_code, response.content))
 
 def _parse_image(content):
-    """"""
+    """
+
+
+    """
 
     def get_already_decoded():
         """"""
 
         if not isinstance(content, basestring):
-            return content['image'], content['links']
+            return content['image'], content.get('links')
 
     def decode():
         """"""
 
         raw = json.loads(content)
         data = next(raw.itervalues())
-        return data['image'], data['links']
+        return data['image'], data.get('links')
 
     image, links = get_already_decoded() or decode()
     dt = dateutil.parser.parse(image['datetime'])
@@ -417,8 +566,52 @@ def _parse_image(content):
                  image['width'], image['height'], image['size'],
                  image['views'], image['bandwidth'], links)
 
-def _api(*args):
-    """Convenience method for formatting JSON API URLs."""
+def _parse_images(content):
+    """
 
-    params = '/'.join(args)
-    return 'https://api.imgur.com/2/{0}.json'.format(params)
+
+    """
+
+    raw = json.loads(content)
+    data = next(raw.itervalues())
+    return [_parse_image(image) for image in data]
+
+def _parse_album(content):
+    """
+
+
+    """
+
+    def get_already_decoded():
+        """"""
+
+        if not isinstance(content, basestring):
+            return content
+
+    def decode():
+        """"""
+
+        return json.loads(content)['albums']
+
+    album = get_already_decoded() or decode()
+    dt = dateutil.parser.parse(album['datetime'])
+
+    return Album(album['id'], album['title'], album['description'],
+                 album['privacy'], album['cover'], album['order'],
+                 album['layout'], dt, album['link'],
+                 album['anonymous_link'])
+
+def _parse_albums(content):
+    """
+
+
+    """
+
+    albums = json.loads(content)['albums']
+    return sorted((_parse_album(album) for album in albums),
+                  key = lambda k: k.order)
+
+def _api(*args):
+    """Convenience method for formatting Imgur JSON API URLs."""
+
+    return 'https://api.imgur.com/2/{0}.json'.format('/'.join(args))
