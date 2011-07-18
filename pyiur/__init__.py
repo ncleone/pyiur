@@ -6,6 +6,7 @@
 
 import collections
 import datetime
+import functools
 import os.path
 
 import dateutil.parser
@@ -19,9 +20,9 @@ from pyiur.auth import OAuth1
 from pyiur.exceptions import ActionNotSupportedError
 from pyiur.exceptions import ImgurException
 from pyiur.exceptions import ImgurServerError
+from pyiur.exceptions import ImgurTemporarilyDownError
 from pyiur.exceptions import InsufficientCreditsError
 from pyiur.exceptions import PermissionDeniedError
-from pyiur.exceptions import ServiceTemporarilyDownError
 
 try:
     import json
@@ -54,6 +55,10 @@ def get_stats(view = None):
     _validate(response)
 
     return parse_stats(response.content)
+
+get_stats_today = functools.partial(get_stats, 'today')
+get_stats_week = functools.partial(get_stats, 'week')
+get_stats_month = functools.partial(get_stats, 'month')
 
 def get_credits(auth = None):
     """
@@ -188,8 +193,25 @@ def get_images(auth, count = None, page = None):
     
     """
 
-    # TODO
-    pass
+    def parse_images(content):
+        """"""
+
+        images = json.loads(content)['images']
+        return [_parse_image(image) for image in images]
+
+    auth = _parse_auth(auth)
+    params = {}
+
+    if count:
+        params['count'] = count
+
+    if page:
+        params['page'] = page
+
+    response = requests.get(_api('account', 'images'), **auth.update(params))
+    _validate(response)
+
+    return parse_images(response.content)
 
 def get_images_count(auth):
     """
@@ -304,24 +326,26 @@ Image = collections.namedtuple('Image', ('hash', 'delete_hash', 'type', 'name',
                                         'animated', 'width', 'height', 'size',
                                         'views', 'bandwidth', 'links'))
 
-class StatsViews(object):
-    TODAY = 'today'
-    WEEK = 'week'
-    MONTH = 'month'
-
-class Album(object):
-    pass
+Album = collections.namedtuple('Album', ())
 
 #==============================================================================
 # Private Helpers
 #==============================================================================
 def _parse_auth(auth):
+    """
+
+
+    """
 
     def dev_auth():
+        """"""
+
         if isinstance(auth, basestring):
             return DevAuth(auth)
 
     def cookie_auth():
+        """"""
+
         try:
             username, password = auth
             return CookieAuth(username, password)
@@ -345,26 +369,24 @@ def _validate(response, auth = None):
     if response.status_code == 200:
         return
 
-    if response.status_code == 400:
+    if response.status_code == 403:
+        validate_credits()
+        error = json.loads(response.content)['error']
+        raise PermissionDeniedError(error['message'])
+
+    if response.status_code in (400, 404):
         error = json.loads(response.content)['error']
 
         if error['method'] == 'delete':
             return
 
-        raise Exception # TODO
-
-    if response.status_code == 403:
-        validate_credits()
-        raise PermissionDeniedError
-
-    if response.status_code == 404:
-        raise ActionNotSupportedError
+        raise ActionNotSupportedError(error['message'])
 
     if response.status_code == 500:
         raise ImgurServerError
 
     if response.status_code == 503:
-        raise ServiceTemporarilyDownError
+        raise ImgurTemporarilyDownError
 
     raise ImgurException(u'imgur replied with an unexpected status code '
                          '{0} and the following content:\n\n{1}'
@@ -373,11 +395,20 @@ def _validate(response, auth = None):
 def _parse_image(content):
     """"""
 
-    raw = json.loads(content)
-    data = next(raw.itervalues())
-    image = data['image']
-    links = data['links']
+    def get_already_decoded():
+        """"""
 
+        if not isinstance(content, basestring):
+            return content['image'], content['links']
+
+    def decode():
+        """"""
+
+        raw = json.loads(content)
+        data = next(raw.itervalues())
+        return data['image'], data['links']
+
+    image, links = get_already_decoded() or decode()
     dt = dateutil.parser.parse(image['datetime'])
     animated = image['animated'] == 'true'
 

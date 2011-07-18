@@ -11,14 +11,14 @@ class ImgurException(Exception):
     """
 
 
-class ServiceTemporarilyDownError(ImgurException):
-    """
-
-
-    """
-
-
 class ImgurServerError(ImgurException):
+    """
+
+
+    """
+
+
+class ImgurTemporarilyDownError(ImgurException):
     """
 
 
