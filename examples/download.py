@@ -33,13 +33,16 @@ def download_images(auth):
     # Create an iterator that yields all of the image links.
     links = image_links(auth = (username, password))
 
+    # Get the number of images to give a nicer downloading message.
+    count = pyiur.get_images_count(auth = auth)
+
     # Let's loop over all of the links to the original images.
-    for url in links:
+    for i, url in enumerate(links, 1):
         # Use the resource image name for our file.
         filename = url.rsplit('/')[-1]
 
         # Time to download the image.
-        print u'Downloading image {0}...'.format(filename),
+        print u'({1}/{2}) Downloading image {0}...'.format(filename, i, count),
         response = requests.get(url)
 
         if response.status_code == 200:
