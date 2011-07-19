@@ -31,7 +31,7 @@ def download_images(auth):
     """Downloads and saves all of the images for the authenticated user."""
 
     # Create an iterator that yields all of the image links.
-    links = image_links(auth = (username, password))
+    links = image_links(auth = auth)
 
     # Get the number of images to give a nicer downloading message.
     count = pyiur.get_images_count(auth = auth)
