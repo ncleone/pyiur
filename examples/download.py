@@ -17,7 +17,7 @@ def image_links(auth):
     # We can't get all images at once, so we need to get each page of images.
     num_pages = pyiur.get_images_pages(auth = auth)
 
-    for page in xrange(num_pages):
+    for page in xrange(1, num_pages + 1):
         # Gets the images for the current page and yields the link to the
         # original image back to the caller.
         #
