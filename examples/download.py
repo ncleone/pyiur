@@ -35,19 +35,22 @@ def download_images(auth):
 
     # Let's loop over all of the links to the original images.
     for url in links:
-        filename = url.rsplit('/')[1]
+        # Use the resource image name for our file.
+        filename = url.rsplit('/')[-1]
 
         # Time to download the image.
-        print('Downloading image {0}...'.format(filename))
+        print u'Downloading image {0}...'.format(filename),
         response = requests.get(url)
 
         if response.status_code == 200:
             # Download succeeded; let's save this thing!
             with open(filename, 'wb') as image_file:
                 image_file.write(response.content)
+
+            print 'DONE'
         else:
             # Oh noes!
-            print(u'Unable to download image: {0}'.format(filename))
+            print 'FAILED'
 
 if __name__ == '__main__':
     username = raw_input('imgur.com username: ')
