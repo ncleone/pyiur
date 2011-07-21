@@ -29,7 +29,7 @@ if __name__ == '__main__':
         # Download the image.
         print u'(%s/%s) Downloading image %s...' % (i + 1, num_images,
                                                     image.filename),
-        response = requests.get(image.original_url)
+        response = requests.get(image.original.url)
 
         if response.status_code == 200:
             # Download succeeded; let's save this thing!
