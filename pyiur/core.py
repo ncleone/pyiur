@@ -452,7 +452,7 @@ class Imgur(_Authenticatable):
     def _api(self, *args):
         """Convenience method for formatting Imgur JSON API URLs."""
 
-        return 'https://api.imgur.com/2/{0}.json'.format('/'.join(args))
+        return 'https://api.imgur.com/2/%s.json' % '/'.join(args)
 
     def _validate_response(self, response):
         """"""
@@ -486,8 +486,8 @@ class Imgur(_Authenticatable):
             raise ImgurTemporarilyDownError
 
         raise ImgurException(u'imgur replied with an unexpected status code '
-                             '{0} and the following content:\n\n{1}'
-                             .format(response.status_code, response.content))
+                             '%s and the following content:\n\n%s' %
+                             (response.status_code, response.content))
 
 
 # TODO: Integrate into Image object.
