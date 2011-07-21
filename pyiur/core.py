@@ -7,6 +7,7 @@
 import collections
 import datetime
 import os.path
+import urlparse
 
 import dateutil.parser
 import requests
@@ -42,36 +43,26 @@ Account = collections.namedtuple('Account', ('url', 'is_pro',
                                              'default_album_privacy',
                                              'public_images'))
 
-Image = collections.namedtuple('Image', ('hash', 'delete_hash', 'type', 'name',
-                                         'title', 'caption', 'datetime',
-                                        'animated', 'width', 'height', 'size',
-                                        'views', 'bandwidth', 'links'))
+class _Authenticatable(object):
+    """
 
-Album = collections.namedtuple('Album', ('id', 'title', 'description',
-                                         'privacy', 'cover', 'order', 'layout',
-                                         'datetime', 'link', 'anonymous_link'))
 
-class AlbumPrivacy(object):
-    PUBLIC = 'public'
-    HIDDEN = 'hidden'
-    SECRET = 'secret'
+    """
 
-class AlbumLayout(object):
-    BLOG = 'blog'
-    HORIZONTAL = 'horizontal'
-    VERTICAL = 'vertical'
-    GRID = 'grid'
-
-#==============================================================================
-# Object API
-#==============================================================================
-class Imgur(object):
-
-    def __init__(self, auth = None):
+    def _get_auth(self):
         """
 
 
         """
+
+        return self._auth
+
+    def _set_auth(self, auth):
+        """
+
+
+        """
+
 
         def dev_auth():
             """"""
@@ -88,7 +79,113 @@ class Imgur(object):
             except (ValueError, TypeError):
                 pass
 
-        self.auth = dev_auth() or cookie_auth() or auth or _AnonAuth()
+        self._auth = dev_auth() or cookie_auth() or auth or _AnonAuth()
+
+    auth = property(_get_auth, _set_auth)
+
+
+class ImageLink(object):
+    """
+
+
+    """
+
+    def __init__(self, url):
+        self.url = url
+
+    @property
+    def filename(self):
+        path = urlparse.urlsplit(self.url).path
+        return os.path.basename(path)
+
+
+class Image(_Authenticatable):
+    """
+
+
+    """
+
+    def __init__(self, hash, type, title, caption, datetime, animated, width,
+                 height, size, views, bandwidth, links, name = None,
+                 delete_hash = None, auth = None):
+
+        def set_image_link(attr):
+            """"""
+
+            url = links.get(attr)
+            link = ImageLink(url) if url else None
+
+            setattr(self, attr, link)
+
+        self.auth = auth
+        self.hash = hash
+        self.delete_hash = delete_hash
+        self.type = type
+        self.name = name
+        self.title = title
+        self.caption = caption
+        self.datetime = datetime
+        self.animated = animated
+        self.width = width
+        self.height = height
+        self.size = size
+        self.views = views
+        self.bandwidth = bandwidth
+        self.links = links
+
+        self.imgur_page = links.get('imgur_page')
+        self.delete_page = links.get('delete_page')
+
+        set_image_link('original')
+        set_image_link('huge_thumbnail')
+        set_image_link('large_thumbnail')
+        set_image_link('medium_thumbnail')
+        set_image_link('small_thumbnail')
+        set_image_link('big_square')
+        set_image_link('small_square')
+
+    @property
+    def filename(self):
+        if self.name:
+            ext = os.path.splitext(self.original.url)[1]
+            return self.name + ext
+
+        return self.original.filename
+
+    def save(self):
+        """
+
+        """
+
+        # TODO
+
+
+Album = collections.namedtuple('Album', ('id', 'title', 'description',
+                                         'privacy', 'cover', 'order', 'layout',
+                                         'datetime', 'link', 'anonymous_link'))
+
+class AlbumPrivacy(object):
+    PUBLIC = 'public'
+    HIDDEN = 'hidden'
+    SECRET = 'secret'
+
+
+class AlbumLayout(object):
+    BLOG = 'blog'
+    HORIZONTAL = 'horizontal'
+    VERTICAL = 'vertical'
+    GRID = 'grid'
+
+
+class Imgur(_Authenticatable):
+
+    def __init__(self, auth = None):
+        """
+
+
+        """
+
+        self.auth = auth
 
     #==========================================================================
     # Informational
@@ -315,35 +412,36 @@ class Imgur(object):
 
 
         """
-    
+
         def get_already_decoded():
             """"""
-    
+
             if not isinstance(content, basestring):
                 return content['image'], content.get('links')
-    
+
         def decode():
             """"""
-    
+
             raw = json.loads(content)
             data = next(raw.itervalues())
             return data['image'], data.get('links')
-    
+
         image, links = get_already_decoded() or decode()
         dt = dateutil.parser.parse(image['datetime'])
         animated = image['animated'] == 'true'
-    
-        return Image(image['hash'], image.get('deletehash'), image['type'],
-                     image.get('name'), image['title'], image['caption'], dt,
-                     animated, image['width'], image['height'], image['size'],
-                     image['views'], image['bandwidth'], links)
-    
+
+        return Image(image['hash'], image['type'], image['title'],
+                     image['caption'], dt, animated, image['width'],
+                     image['height'], image['size'], image['views'],
+                     image['bandwidth'], links, image.get('name'),
+                     image.get('deletehash'),)
+
     def _parse_images(self, content):
         """
 
 
         """
-    
+
         raw = json.loads(content)
         data = next(raw.itervalues())
         return [self._parse_image(image) for image in data]
