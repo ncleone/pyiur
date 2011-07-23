@@ -84,3 +84,43 @@ class OAuth1(object):
                 'auth': None}
 
 
+class Authenticatable(object):
+    """
+
+
+    """
+
+    def _get_auth(self):
+        """
+
+
+        """
+
+        return self._auth
+
+    def _set_auth(self, auth):
+        """
+
+
+        """
+
+
+        def dev_auth():
+            """"""
+
+            if isinstance(auth, basestring):
+                return DeveloperKey(auth)
+
+        def cookie_auth():
+            """"""
+
+            try:
+                username, password = auth
+                return Cookie(username, password)
+            except (ValueError, TypeError):
+                pass
+
+        self._auth = dev_auth() or cookie_auth() or auth or Anonymous()
+
+    auth = property(_get_auth, _set_auth)
+

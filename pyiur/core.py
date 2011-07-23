@@ -4,7 +4,6 @@
 
 """
 
-import collections
 import datetime
 import os.path
 import urlparse
@@ -12,9 +11,7 @@ import urlparse
 import dateutil.parser
 import requests
 
-from pyiur.auth import Anonymous as _AnonAuth
-from pyiur.auth import Cookie as _CookieAuth
-from pyiur.auth import DeveloperKey as _DevAuth
+from pyiur.auth import Authenticatable as _Authenticatable
 
 from pyiur.exceptions import ActionNotSupportedError
 from pyiur.exceptions import ImgurException
@@ -31,73 +28,81 @@ except ImportError:
 #==============================================================================
 # Types
 #==============================================================================
-Credits = collections.namedtuple('Credits', ('limit', 'remaining', 'reset',
-                                             'refresh_in_secs'))
-
-Statistics = collections.namedtuple('Statistics',
-                                    ('most_popular_images', 'images_uploaded',
-                                     'images_viewed', 'bandwidth_used',
-                                     'average_image_size'))
-
-Account = collections.namedtuple('Account', ('url', 'is_pro',
-                                             'default_album_privacy',
-                                             'public_images'))
-
-class _Authenticatable(object):
+class Credits(object):
     """
 
 
     """
 
-    def _get_auth(self):
+    def __init__(self, limit, remaining, reset, refresh_in_secs):
+        self.limit = limit
+        self.remaining = remaining
+        self.reset = reset
+        self.refresh_in_secs = refresh_in_secs
+
+
+class Statistics(object):
+    """
+
+
+    """
+
+    _IMAGE_URI = 'http://imgur.com/%s'
+
+    def __init__(self, most_popular_images, images_uploaded, images_viewed,
+                 bandwidth_used, average_image_size):
         """
 
 
         """
 
-        return self._auth
+        self.most_popular_images = most_popular_images
+        self.images_uploaded = images_uploaded
+        self.images_viewed = images_viewed
+        self.bandwidth_used = bandwidth_used
+        self.average_image_size = average_image_size
 
-    def _set_auth(self, auth):
+
+def Account(object):
+    """
+
+
+    """
+
+    def __init__(self, url, is_pro, default_album_privacy, public_images):
         """
 
 
         """
 
-
-        def dev_auth():
-            """"""
-
-            if isinstance(auth, basestring):
-                return _DevAuth(auth)
-
-        def cookie_auth():
-            """"""
-
-            try:
-                username, password = auth
-                return _CookieAuth(username, password)
-            except (ValueError, TypeError):
-                pass
-
-        self._auth = dev_auth() or cookie_auth() or auth or _AnonAuth()
-
-    auth = property(_get_auth, _set_auth)
+        self.url = url
+        self.is_pro = is_pro
+        self.default_album_privacy = default_album_privacy
+        self.is_images_public = public_images
 
 
-class ImageLink(object):
+class Resource(object):
     """
 
 
     """
 
     def __init__(self, url):
+        """
+        """
+
         self.url = url
 
     @property
-    def filename(self):
-        path = urlparse.urlsplit(self.url).path
-        return os.path.basename(path)
+    def resource(self):
+        """
+        """
 
+        path = urlparse.urlsplit(self.url).path
+        resource = os.path.basename(path)
+        return resource
+
+    filename = resource
 
 class Image(_Authenticatable):
     """
@@ -109,11 +114,11 @@ class Image(_Authenticatable):
                  height, size, views, bandwidth, links, name = None,
                  delete_hash = None, auth = None):
 
-        def set_image_link(attr):
+        def set_resource(attr):
             """"""
 
             url = links.get(attr)
-            link = ImageLink(url) if url else None
+            link = Resource(url) if url else None
 
             setattr(self, attr, link)
 
@@ -133,16 +138,16 @@ class Image(_Authenticatable):
         self.bandwidth = bandwidth
         self.links = links
 
-        self.imgur_page = links.get('imgur_page')
-        self.delete_page = links.get('delete_page')
+        set_resource('imgur_page')
+        set_resource('delete_page')
 
-        set_image_link('original')
-        set_image_link('huge_thumbnail')
-        set_image_link('large_thumbnail')
-        set_image_link('medium_thumbnail')
-        set_image_link('small_thumbnail')
-        set_image_link('big_square')
-        set_image_link('small_square')
+        set_resource('original')
+        set_resource('huge_thumbnail')
+        set_resource('large_thumbnail')
+        set_resource('medium_thumbnail')
+        set_resource('small_thumbnail')
+        set_resource('big_square')
+        set_resource('small_square')
 
     @property
     def filename(self):
@@ -152,6 +157,15 @@ class Image(_Authenticatable):
 
         return self.original.filename
 
+    def _get_title(self):
+        return self.title
+
+    def _set_title(self, value):
+        self.title = value
+        self._title_changed = True
+
+    title = property(_get_title, _set_title)
+
     def save(self):
         """
 
@@ -160,24 +174,44 @@ class Image(_Authenticatable):
         # TODO
 
 
-Album = collections.namedtuple('Album', ('id', 'title', 'description',
-                                         'privacy', 'cover', 'order', 'layout',
-                                         'datetime', 'link', 'anonymous_link'))
+class Album(_Authenticatable):
 
-class AlbumPrivacy(object):
-    PUBLIC = 'public'
-    HIDDEN = 'hidden'
-    SECRET = 'secret'
+    class PrivacyOptions(object):
+        PUBLIC = 'public'
+        HIDDEN = 'hidden'
+        SECRET = 'secret'
+    
+    
+    class LayoutOptions(object):
+        BLOG = 'blog'
+        HORIZONTAL = 'horizontal'
+        VERTICAL = 'vertical'
+        GRID = 'grid'
 
 
-class AlbumLayout(object):
-    BLOG = 'blog'
-    HORIZONTAL = 'horizontal'
-    VERTICAL = 'vertical'
-    GRID = 'grid'
+    def __init__(self, id, title, description, privacy, cover, order, layout,
+                 datetime, link, anonymous_link, auth = None):
+        """
+        """
+
+        self.auth = auth
+        self.id = id
+        self.title = title
+        self.description = description
+        self.privacy = privacy
+        self.cover = cover
+        self.order = order
+        self.layout = layout
+        self.datetime = datetime
+        self.link = link
+        self.anonymous_link = anonymous_link
 
 
 class Imgur(_Authenticatable):
+    """
+
+
+    """
 
     def __init__(self, auth = None):
         """
@@ -434,7 +468,7 @@ class Imgur(_Authenticatable):
                      image['caption'], dt, animated, image['width'],
                      image['height'], image['size'], image['views'],
                      image['bandwidth'], links, image.get('name'),
-                     image.get('deletehash'),)
+                     image.get('deletehash'), self.auth)
 
     def _parse_images(self, content):
         """

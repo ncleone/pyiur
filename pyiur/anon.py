@@ -53,4 +53,3 @@ def sideload(url):
     """
 
     return pyiur.core.Imgur().sideload(url)
-
