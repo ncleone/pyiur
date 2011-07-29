@@ -6,12 +6,9 @@ imgur.com account.
 
 """
 
-from __future__ import with_statement
-
 import getpass
 
 import pyiur
-import requests
 
 if __name__ == '__main__':
     # Authenticate with imgur.com using cookie authentication.
@@ -29,15 +26,9 @@ if __name__ == '__main__':
         # Download the image.
         print u'(%s/%s) Downloading image %s...' % (i + 1, num_images,
                                                     image.filename),
-        response = requests.get(image.original.url)
 
-        if response.status_code == 200:
-            # Download succeeded; let's save this thing!
-            with open(image.filename, 'wb') as image_file:
-                image_file.write(response.content)
-
+        try:
+            image.download()
             print 'DONE'
-        else:
-            # Oh noes!
+        except:
             print 'FAILED'
-

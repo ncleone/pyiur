@@ -6,6 +6,7 @@
 
 import datetime
 import os.path
+import sys
 import urlparse
 
 import dateutil.parser
@@ -104,6 +105,33 @@ class Resource(object):
 
     filename = resource
 
+    def download(self, filename = None):
+        """
+        """
+
+        def get_save_filename():
+            path = filename or self.filename
+
+            if not os.path.lexists(path):
+                return path
+
+            root, ext = os.path.splitext(path)
+
+            for i in xrange(1, sys.maxint):
+                next_path = u'%s (%d)%s' % (root, i, ext)
+
+                if not os.path.lexists(next_path):
+                    return next_path
+
+        response = requests.get(self.url)
+
+        if response.status_code != 200:
+            raise ImgurException() # TODO
+
+        with open(get_save_filename(), 'wb') as resource_file:
+            resource_file.write(response.content)
+
+
 class Image(_Authenticatable):
     """
 
@@ -158,16 +186,33 @@ class Image(_Authenticatable):
         return self.original.filename
 
     def _get_title(self):
-        return self.title
+        return self._title
 
     def _set_title(self, value):
-        self.title = value
+        self._title = value
         self._title_changed = True
 
     title = property(_get_title, _set_title)
 
+    def download(self, filename = None):
+        """
+
+
+        """
+
+        return self.original.download(filename or self.filename)
+
+    def delete(self):
+        """
+
+
+        """
+
+        Imgur(self.auth).delete_image(self.hash)
+
     def save(self):
         """
+
 
         """
 
@@ -175,13 +220,17 @@ class Image(_Authenticatable):
 
 
 class Album(_Authenticatable):
+    """
+
+
+    """
 
     class PrivacyOptions(object):
         PUBLIC = 'public'
         HIDDEN = 'hidden'
         SECRET = 'secret'
-    
-    
+
+
     class LayoutOptions(object):
         BLOG = 'blog'
         HORIZONTAL = 'horizontal'
@@ -192,6 +241,8 @@ class Album(_Authenticatable):
     def __init__(self, id, title, description, privacy, cover, order, layout,
                  datetime, link, anonymous_link, auth = None):
         """
+
+
         """
 
         self.auth = auth
@@ -205,6 +256,56 @@ class Album(_Authenticatable):
         self.datetime = datetime
         self.link = link
         self.anonymous_link = anonymous_link
+
+    def get_images(self, count = None, page = None):
+        """
+
+
+        """
+
+        return Imgur(self.auth).get_album_images(self.id, count, page)
+
+    @property
+    def images(self):
+        """
+
+
+        """
+
+        for page in xrange(1, sys.maxint):
+            try:
+                page_images = self.get_images(page = page)
+            except ActionNotSupportedError:
+                raise StopIteration
+
+            for image in page_images:
+                yield image
+
+    @property
+    def num_images(self):
+        """
+
+
+        """
+
+        return len(list(self.images))
+
+    def download(self, folder = None):
+        """
+
+
+        """
+
+        for image in self.images:
+            image.download(folder)
+
+    def delete(self):
+        """
+
+
+        """
+
+        Imgur(self.auth).delete_album(self.id)
 
 
 class Imgur(_Authenticatable):
@@ -226,14 +327,29 @@ class Imgur(_Authenticatable):
     #==========================================================================
     @property
     def stats_for_today(self):
+        """
+
+
+        """
+
         return self._get_stats('today')
 
     @property
     def stats_for_week(self):
+        """
+
+
+        """
+
         return self._get_stats('week')
 
     @property
     def stats_for_month(self):
+        """
+
+
+        """
+
         return self._get_stats('month')
 
     @property
@@ -411,12 +527,11 @@ class Imgur(_Authenticatable):
     def images(self):
         """Yields all images for the authenticated account."""
 
-        total = self.num_images
-        count = 30
-        num_pages = total / count + (total % count != 0)
-
-        for page in xrange(1, num_pages + 1):
-            page_images = self.get_images(count, page)
+        for page in xrange(1, sys.maxint):
+            try:
+                page_images = self.get_images(page = page)
+            except ActionNotSupportedError:
+                raise StopIteration
 
             for image in page_images:
                 yield image
@@ -440,6 +555,32 @@ class Imgur(_Authenticatable):
         self._validate_response(response)
 
         return parse_count(response.content)
+
+    def set_image_title(self, hash, title):
+        """
+
+
+        """
+
+        params = {'title': title}
+        response = requests.post(self._api('account', 'images', hash),
+                                 **self.auth.update(params))
+        self._validate_response(response)
+
+        return self._parse_image(response.content)
+
+    def set_image_caption(self, hash, caption):
+        """
+
+
+        """
+
+        params = {'caption': caption}
+        response = requests.post(self._api('account', 'images', hash),
+                                 **self.auth.update(params))
+        self._validate_response(response)
+
+        return self._parse_image(response.content)
 
     def _parse_image(self, content):
         """
@@ -479,6 +620,104 @@ class Imgur(_Authenticatable):
         raw = json.loads(content)
         data = next(raw.itervalues())
         return [self._parse_image(image) for image in data]
+
+    #==========================================================================
+    # Albums
+    #==========================================================================
+    def get_albums(self, count = None, page = None):
+        """
+
+
+        """
+
+        params = {}
+
+        if count:
+            params['count'] = count
+
+        if page:
+            params['page'] = page
+
+        response = requests.get(self._api('account', 'albums'),
+                                **self.auth.update(params))
+        self._validate_response(response)
+
+        return self._parse_albums(response.content)
+
+
+    @property
+    def albums(self):
+        """Yields all albums for the authenticated account."""
+
+        for page in xrange(1, sys.maxint):
+            try:
+                page_albums = self.get_albums(page = page)
+            except ActionNotSupportedError:
+                raise StopIteration
+
+            for album in page_albums:
+                yield album
+
+    @property
+    def num_albums(self):
+        """
+
+
+        """
+
+        def parse_count(content):
+            """"""
+
+            albums_count = json.loads(content)['albums_count']
+            count = albums_count['count']
+            return count
+
+        response = requests.get(self._api('account', 'albums_count'),
+                                **self.auth.update())
+        self._validate_response(response)
+
+        return parse_count(response.content)
+
+    def get_album_image_count(self, id):
+        """
+        """
+
+        return len(list(self.get_album_images(id)))
+
+    def _parse_album(self, content):
+        """
+
+
+        """
+
+        def get_already_decoded():
+            """"""
+
+            if not isinstance(content, basestring):
+                return content
+
+        def decode():
+            """"""
+
+            return json.loads(content)['albums']
+
+        album = get_already_decoded() or decode()
+        dt = dateutil.parser.parse(album['datetime'])
+
+        return Album(album['id'], album['title'], album['description'],
+                     album['privacy'], album['cover'], album['order'],
+                     album['layout'], dt, album['link'],
+                     album['anonymous_link'], self.auth)
+
+    def _parse_albums(self, content):
+        """
+
+
+        """
+
+        albums = json.loads(content)['albums']
+        return sorted((self._parse_album(album) for album in albums),
+                      key = lambda k: k.order)
 
     #==========================================================================
     # Common
@@ -524,132 +763,63 @@ class Imgur(_Authenticatable):
                              (response.status_code, response.content))
 
 
-# TODO: Integrate into Image object.
-#def update_image(hash, auth, **fields_to_update):
-#    """
-#
-#
-#    """
-#
-#    params = {}
-#
-#    if 'title' in fields_to_update:
-#        params['title'] = fields_to_update['title']
-#
-#    if 'caption' in fields_to_update:
-#        params['caption'] = fields_to_update['caption']
-#
-#    auth = _parse_auth(auth)
-#    response = requests.post(_api('account', 'images', hash),
-#                             **auth.update(params))
-#    _validate_response(response)
-#
-#    return _parse_image(response.content)
-#
-#def set_image_title(hash, title, auth):
-#    """
-#    
-#    
-#    """
-#
-#    return update_image(hash, title = title, auth = auth)
-#
-#def set_image_caption(hash, caption, auth):
-#    """
-#    
-#    
-#    """
-#
-#    return update_image(hash, caption = caption, auth = auth)
+    def create_album(self, title = None, description = None, privacy = None,
+                     layout = None):
+        """
 
-#==============================================================================
-# Albums TODO: Integrate into the Album object.
-#==============================================================================
-#def get_albums(auth, count = None, page = None):
-#    """
-#    
-#    
-#    """
-#
-#    params = {}
-#
-#    if count:
-#        params['count'] = count
-#
-#    if page:
-#        params['page'] = page
-#
-#    auth = _parse_auth(auth)
-#    response = requests.get(_api('account', 'albums'), **auth.update(params))
-#    _validate_response(response)
-#
-#    return _parse_albums(response.content)
-#
-#def get_albums_count(auth):
-#    """
-#    
-#    
-#    """
-#
-#    def parse_count(content):
-#        """"""
-#
-#        albums_count = json.loads(content)['albums_count']
-#        count = albums_count['count']
-#        return count
-#
-#    auth = _parse_auth(auth)
-#    response = requests.get(_api('account', 'albums_count'), **auth.update())
-#    _validate_response(response)
-#
-#    return parse_count(response.content)
-#
-#def get_albums_pages(auth, count = 30):
-#    """
-#
-#
-#    """
-#
-#    total = get_albums_count(auth)
-#    return total / count + (total % count != 0)
-#
-#def create_album(auth, title = None, description = None, privacy = None,
-#                 layout = None):
-#    """
-#
-#
-#    """
-#
-#    params = {}
-#
-#    if title:
-#        params['title'] = title
-#
-#    if description:
-#        params['description'] = description
-#
-#    if privacy:
-#        params['privacy'] = privacy
-#
-#    if layout:
-#        params['layout'] = layout
-#
-#    auth = _parse_auth(auth)
-#    response = requests.post(_api('account', 'albums'), **auth.update(params))
-#    _validate_response(response)
-#
-#    return _parse_album(response.content)
-#
-#def delete_album(id, auth):
-#    """
-#
-#
-#    """
-#
-#    auth = _parse_auth(auth)
-#    response = requests.delete(_api('account', 'albums', id), **auth.update())
-#    _validate_response(response)
-#
+
+        """
+
+        params = {}
+
+        if title:
+            params['title'] = title
+
+        if description:
+            params['description'] = description
+
+        if privacy:
+            params['privacy'] = privacy
+
+        if layout:
+            params['layout'] = layout
+
+        response = requests.post(self._api('account', 'albums'),
+                                 **self.auth.update(params))
+        self._validate_response(response)
+
+        return self._parse_album(response.content)
+
+    def delete_album(self, id):
+        """
+
+
+        """
+
+        response = requests.delete(self._api('account', 'albums', id),
+                                   **self.auth.update())
+        self._validate_response(response)
+
+    def get_album_images(self, id, count = None, page = None):
+        """
+
+
+        """
+
+        params = {}
+
+        if count:
+            params['count'] = count
+
+        if page:
+            params['page'] = page
+
+        response = requests.get(self._api('account', 'albums', id),
+                                **self.auth.update(params))
+        self._validate_response(response)
+
+        return self._parse_images(response.content)
+
 #def set_albums_order(ids, auth):
 #    """
 #
@@ -658,27 +828,6 @@ class Imgur(_Authenticatable):
 #
 #    # TODO
 #    pass
-#
-#def get_album_images(id, auth, count = None, page = None):
-#    """
-#
-#
-#    """
-#
-#    params = {}
-#
-#    if count:
-#        params['count'] = count
-#
-#    if page:
-#        params['page'] = page
-#
-#    auth = _parse_auth(auth)
-#    response = requests.get(_api('account', 'albums', id),
-#                            **auth.update(params))
-#    _validate_response(response)
-#
-#    return _parse_images(response.content)
 #
 #def set_album_images_order(id, image_hashes, auth):
 #    """
@@ -762,37 +911,3 @@ class Imgur(_Authenticatable):
 #
 #    return update_album(id, del_images = hashes, auth = auth)
 #
-#def _parse_album(content):
-#    """
-#
-#
-#    """
-#
-#    def get_already_decoded():
-#        """"""
-#
-#        if not isinstance(content, basestring):
-#            return content
-#
-#    def decode():
-#        """"""
-#
-#        return json.loads(content)['albums']
-#
-#    album = get_already_decoded() or decode()
-#    dt = dateutil.parser.parse(album['datetime'])
-#
-#    return Album(album['id'], album['title'], album['description'],
-#                 album['privacy'], album['cover'], album['order'],
-#                 album['layout'], dt, album['link'],
-#                 album['anonymous_link'])
-#
-#def _parse_albums(content):
-#    """
-#
-#
-#    """
-#
-#    albums = json.loads(content)['albums']
-#    return sorted((_parse_album(album) for album in albums),
-#                  key = lambda k: k.order)
