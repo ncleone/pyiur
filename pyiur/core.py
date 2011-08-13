@@ -4,6 +4,8 @@
 
 """
 
+from __future__ import with_statement
+
 import datetime
 import os.path
 import sys
@@ -11,6 +13,11 @@ import urlparse
 
 import dateutil.parser
 import requests
+
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 from pyiur.auth import Authenticatable as _Authenticatable
 
@@ -20,11 +27,6 @@ from pyiur.exceptions import ImgurServerError
 from pyiur.exceptions import ImgurTemporarilyDownError
 from pyiur.exceptions import InsufficientCreditsError
 from pyiur.exceptions import PermissionDeniedError
-
-try:
-    import json
-except ImportError:
-    import simplejson as json
 
 #==============================================================================
 # Types
